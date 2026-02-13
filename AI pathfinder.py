@@ -84,3 +84,73 @@ def try_spawn_dynamic(grid, start, target):
                 return (r,c)
 
     return None
+
+# Minahil part
+class Visualizer:
+    def __init__(self, algo_name):
+        self.algo_name = algo_name
+        plt.ion()
+        self.fig = plt.figure(figsize=(10, 9))
+        self.fig.canvas.manager.set_window_title("GOOD PERFORMANCE TIME APP")
+        self.fig.patch.set_facecolor("#1A202C")
+        gs = gridspec.GridSpec(2, 1, height_ratios=[14,1], hspace=0.08)
+        self.ax = self.fig.add_subplot(gs[0])
+        self.ax2 = self.fig.add_subplot(gs[1])
+        self.ax2.axis('off')
+        self.ax.set_facecolor("#1A202C")
+        self.ax.set_title(f"GOOD PERFORMANCE TIME APP — {algo_name}", color="white", fontsize=13, fontweight='bold', pad=10)
+        self.ax.tick_params(colors='#4A5568')
+        for spine in self.ax.spines.values():
+            spine.set_edgecolor('#4A5568')
+
+        # legend
+        legend_patches = [
+            mpatches.Patch(color="#22C55E", label="Start"),
+            mpatches.Patch(color="#EF4444", label="Target"),
+            mpatches.Patch(color="#60A5FA", label="Frontier"),
+            mpatches.Patch(color="#BFDBFE", label="Explored"),
+            mpatches.Patch(color="#FBBF24", label="Final Path"),
+            mpatches.Patch(color="#2D3748", label="Wall"),
+            mpatches.Patch(color="#F97316", label="Dynamic Wall"),
+        ]
+        self.ax.legend(handles=legend_patches, loc='upper right', fontsize=7, facecolor='#2D3748', labelcolor='white', framealpha=0.9, ncol=2)
+
+        self.img = None
+        self.status_text = self.ax2.text(0.5, 0.5, "", ha='center', va='center', color='white', fontsize=10, transform=self.ax2.transAxes)
+
+    def _to_display(self, grid):
+        """Map grid values to colormap indices (wall -1 → 1)."""
+        d = grid.copy().astype(float)
+        d[d == WALL] = 1
+        return d
+
+    def draw(self, grid, status=""):
+        d = self._to_display(grid)
+        if self.img is None:
+            self.img = self.ax.imshow(d, cmap=cmap, vmin=0, vmax=7, interpolation='nearest', aspect='equal')
+            # grid lines
+            rows, cols = grid.shape
+            for x in range(cols+1):
+                self.ax.axvline(x-0.5, color='#4A5568', linewidth=0.4)
+            for y in range(rows+1):
+                self.ax.axhline(y-0.5, color='#4A5568', linewidth=0.4)
+            self.ax.set_xticks(range(cols))
+            self.ax.set_yticks(range(rows))
+            self.ax.set_xticklabels(range(cols), color='#718096', fontsize=6)
+            self.ax.set_yticklabels(range(rows), color='#718096', fontsize=6)
+        else:
+            self.img.set_data(d)
+        self.status_text.set_text(status)
+        self.fig.canvas.draw()
+        self.fig.canvas.flush_events()
+        time.sleep(STEP_DELAY)
+
+    def final(self, grid, path, stats):
+        # Draw final path
+        g = grid.copy()
+        for r,c in path:
+            if g[r][c] not in (START, TARGET):
+                g[r][c] = PATH
+        self.draw(g, stats)
+        plt.ioff()
+        plt.show(block=True)
