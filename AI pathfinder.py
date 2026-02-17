@@ -154,3 +154,138 @@ class Visualizer:
         self.draw(g, stats)
         plt.ioff()
         plt.show(block=True)
+
+# Nimrah's part
+
+def bfs(grid_orig, start, target, viz):
+    grid = grid_orig.copy()
+    queue = deque([start])
+    came_from = {start: None}
+    explored_count = 0
+    step = 0
+
+    while queue:
+        # dynamic obstacle
+        try_spawn_dynamic(grid, start, target)
+
+        node = queue.popleft()
+        r, c = node
+
+        if grid[r][c] not in (START, TARGET, DYN_WALL, WALL):
+            grid[r][c] = EXPLORED
+        explored_count += 1
+        step += 1
+
+        if node == target:
+            path = reconstruct_path(came_from, start, target)
+            viz.final(grid, path, f"BFS | Steps: {step} | Explored: {explored_count} | Path Length: {len(path)}")
+            return path
+
+        for nb in get_neighbors(grid, node):
+            if nb not in came_from:
+                # re-check if dynamic wall spawned here
+                nr, nc = nb
+                if grid[nr][nc] == DYN_WALL:
+                    continue
+                came_from[nb] = node
+                queue.append(nb)
+                if grid[nr][nc] not in (START, TARGET):
+                    grid[nr][nc] = FRONTIER
+
+        if step % 2 == 0:
+            viz.draw(grid, f"BFS | Step {step} | Queue size: {len(queue)}")
+
+    viz.draw(grid, "BFS | No path found!")
+    plt.ioff(); plt.show(block=True)
+    return []
+
+def dfs(grid_orig, start, target, viz):
+    grid = grid_orig.copy()
+    stack = [start]
+    came_from = {start: None}
+    explored_count = 0
+    step = 0
+
+    while stack:
+        try_spawn_dynamic(grid, start, target)
+
+        node = stack.pop()
+        r, c = node
+
+        if node in came_from and grid[r][c] == FRONTIER:
+            pass
+
+        if grid[r][c] not in (START, TARGET, WALL, DYN_WALL):
+            grid[r][c] = EXPLORED
+        explored_count += 1
+        step += 1
+
+        if node == target:
+            path = reconstruct_path(came_from, start, target)
+            viz.final(grid, path, f"DFS | Steps: {step} | Explored: {explored_count} | Path Length: {len(path)}")
+            return path
+
+        for nb in get_neighbors(grid, node):
+            nr, nc = nb
+            if nb not in came_from:
+                if grid[nr][nc] == DYN_WALL:
+                    continue
+                came_from[nb] = node
+                stack.append(nb)
+                if grid[nr][nc] not in (START, TARGET):
+                    grid[nr][nc] = FRONTIER
+
+        if step % 2 == 0:
+            viz.draw(grid, f"DFS | Step {step} | Stack size: {len(stack)}")
+
+    viz.draw(grid, "DFS | No path found!")
+    plt.ioff(); plt.show(block=True)
+    return []
+
+
+def ucs(grid_orig, start, target, viz):
+    grid = grid_orig.copy()
+    # cost: diagonal = sqrt(2) ~1.414, straight = 1
+    heap = [(0, start)]
+    came_from = {start: None}
+    cost_so_far = {start: 0}
+    explored_count = 0
+    step = 0
+
+    while heap:
+        try_spawn_dynamic(grid, start, target)
+
+        cost, node = heapq.heappop(heap)
+        r, c = node
+
+        if grid[r][c] not in (START, TARGET, WALL, DYN_WALL):
+            grid[r][c] = EXPLORED
+        explored_count += 1
+        step += 1
+
+        if node == target:
+            path = reconstruct_path(came_from, start, target)
+            viz.final(grid, path, f"UCS | Steps: {step} | Explored: {explored_count} | Cost: {cost:.2f} | Path: {len(path)}")
+            return path
+
+        for nb in get_neighbors(grid, node):
+            nr, nc = nb
+            if grid[nr][nc] == DYN_WALL:
+                continue
+            dr = abs(nr - r)
+            dc = abs(nc - c)
+            move_cost = 1.414 if (dr == 1 and dc == 1) else 1.0
+            new_cost = cost + move_cost
+            if nb not in cost_so_far or new_cost < cost_so_far[nb]:
+                cost_so_far[nb] = new_cost
+                came_from[nb] = node
+                heapq.heappush(heap, (new_cost, nb))
+                if grid[nr][nc] not in (START, TARGET):
+                    grid[nr][nc] = FRONTIER
+
+        if step % 2 == 0:
+            viz.draw(grid, f"UCS | Step {step} | Cost so far: {cost:.2f}")
+
+    viz.draw(grid, "UCS | No path found!")
+    plt.ioff(); plt.show(block=True)
+    return []
